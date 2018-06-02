@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<!-- Anticipatory Story Reader core properties
+	-->
+
+<properties>
+
+	<parameter name="DatabaseName" value = "tqos_database" />
+	<parameter name="DatabaseSchema" value = "tqos_asr" />
+	<parameter name="ClientCacheSize" value = "8192" />
+
+	<!-- Note, these paths are for testing -->
+	<parameter name="MapDBpmidsPath" value="data/pmids/pmids" />
+
+	<parameter name="WordDictionaryPath" value="data/dictionary.json.gz" />
+
+	<parameter name="TopicProviderPath" value="data/topics.txt" />
+
+	<parameter name="GraphProviderPath" value="data/graph.txt" />
+
+	<parameter name="TripleProviderPath" value="data/triples.txt" />
+
+	<parameter name="SentenceProviderPath" value="data/sentences.txt" />
+	
+	<parameter name="DocumentProviderPath" value="data/documents.txt" />
+	
+	<parameter name="OpenNLPModels" value="models/opennlp-models" />
+
+	<!-- A Postgres database of this name must exist -->
+	<parameter name="GraphName" value="wordgrams" />
+	
+
+	<list name="Lenses">
+		<parameter name="CauseLens" value="org.topicquests.os.asr.reader.lens.CausalLens" /> 
+		<parameter name="BeliefLens" value="org.topicquests.os.asr.reader.lens.BeliefLens" /> 
+		<parameter name="BiographyLens" value="org.topicquests.os.asr.reader.lens.BiographyLens" /> 
+		<parameter name="ProcessLens" value="org.topicquests.os.asr.reader.lens.ProcessLens" /> 
+	</list>
+
+	
+</properties>
+
