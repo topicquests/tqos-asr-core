@@ -6,13 +6,17 @@
 package org.topicquests.hyperbrane;
 
 import java.io.*;
-//import java.util.*;
-import java.util.Iterator;
+import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import net.minidev.json.*;
 import net.minidev.json.parser.JSONParser;
+
+import org.mapdb.BTreeMap;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.Serializer;
 //import org.topicquests.learner.api.IDataProvider;
 import org.topicquests.hyperbrane.api.IDictionary;
 import org.topicquests.os.asr.ASRCoreEnvironment;
@@ -26,16 +30,24 @@ import org.topicquests.os.asr.ASRCoreEnvironment;
  */
 public class ConcordanceDictionary  implements IDictionary {
 	private ASRCoreEnvironment environment;
-	private JSONObject dictionary;
+	//private JSONObject dictionary;
+	private DB wordDatabase;
+	private DB idDatabase;
+	private BTreeMap<String, String> wordIds;
+	private BTreeMap<String, String> idWords;
 	private JSONUtil util;
 	private Long nextNumber = null;
 	private long wordCount = 0;
 	private long totalWordCount = 0;
+	private boolean isClosed = true;
+
 	static final String 
+		WORD_ID_NAME	= "WordId",
+		ID_WORD_NAME	= "IdWord",
 		WORDS 		= "words",
 		//an index of words, returning their id values
 		IDS			= "ids",
-		NUMBER		= "number",
+		NUMBER		= "numberx",
 		SIZE		= "size",
 		WORD_COUNT	= "wordCount";
 	
@@ -47,13 +59,57 @@ public class ConcordanceDictionary  implements IDictionary {
 		environment = env;
 		util = new JSONUtil();
 		bootDictionary();
-		nextNumber = (Long)dictionary.get(NUMBER);
-		if (nextNumber == null)
-			nextNumber = new Long(1);		
+		//nextNumber = (Long)dictionary.get(NUMBER);
+		//if (nextNumber == null)
+		//	nextNumber = new Long(1);		
 	}
 	
 	void bootDictionary() throws Exception {
+		isClosed = false;
 		String path = environment.getStringProperty("WordDictionaryPath");
+		String idPath = environment.getStringProperty("IdDictionaryPath");
+		File f = new File(path);
+		environment.logDebug("ConcordanceDictionary.bootDictionary-1 "+path+" "+f);
+		wordDatabase = DBMaker.fileDB(f)
+				.closeOnJvmShutdown()
+				.make();
+		environment.logDebug("ConcordanceDictionary.bootDictionary-2 "+wordDatabase);
+
+		 wordIds = wordDatabase
+		        .treeMap(WORD_ID_NAME, Serializer.STRING, Serializer.STRING)
+		        .counterEnable()
+		        .createOrOpen();
+		environment.logDebug("ConcordanceDictionary.bootDictionary-2a "+wordIds);
+environment.logDebug("FOO "+wordIds.get(NUMBER)+" "+wordIds.get(SIZE)+" "+wordIds.get(WORD_COUNT));
+		 if (wordIds.get(NUMBER) == null) {
+			 wordIds.put(NUMBER, "0");
+			 wordIds.put(SIZE, "0");
+			 wordIds.put(WORD_COUNT, "0");
+			 nextNumber = new Long(1);
+			 wordCount = 0;
+			 totalWordCount = 0;
+		 } else {
+			 String x = wordIds.get(NUMBER);
+			 String y = wordIds.get(SIZE);
+			 String z = wordIds.get(WORD_COUNT);
+			 environment.logDebug("BAR "+x+" "+y+" "+z+" "+(y.equals("0")));
+			 nextNumber = Long.parseLong(x); //getLong(x);
+			 wordCount = Long.parseLong(y);//    Long.getLong(y);
+			 totalWordCount = Long.parseLong(z); //getLong(z);
+		 }
+		environment.logDebug("ConcordanceDictionary.bootDictionary-3 "+wordIds);
+		f = new File(idPath);
+		 idDatabase = DBMaker.fileDB(f)
+					.closeOnJvmShutdown()
+					.make();
+			environment.logDebug("ConcordanceDictionary.bootDictionary-4 "+idDatabase);
+		 idWords = idDatabase
+			        .treeMap(ID_WORD_NAME, Serializer.STRING, Serializer.STRING)
+			        .counterEnable()
+			        .createOrOpen();
+		environment.logDebug("ConcordanceDictionary.bootDictionary-5 "+idWords);
+
+/*		
 		dictionary = load(path);
 		if (dictionary == null || dictionary.isEmpty()) {
 			dictionary = new JSONObject();
@@ -64,16 +120,38 @@ public class ConcordanceDictionary  implements IDictionary {
 			wordCount = ((Long)dictionary.get(SIZE)).longValue();
 			totalWordCount = ((Long)dictionary.get(WORD_COUNT)).longValue(); 
 		}
-		environment.logDebug("DictionarySize- "+dictionary.size());
+*/
+		environment.logDebug("DictionarySize- "+totalWordCount);
 	}
 	
-	public void saveDictionary() throws Exception {
+	public void saveDictionary() { //throws Exception {
+		environment.logDebug("DictionarySize+ "+totalWordCount);
+		if (!isClosed) {
+			System.out.println("PersistentMap shutting down");
+			//TODO 
+			//IF we store these on each addWord
+			// Will run slower but will be fault tolerant
+			 wordIds.put(NUMBER, nextNumber.toString());
+			 wordIds.put(SIZE, Long.toString(wordCount));
+			 wordIds.put(WORD_COUNT, Long.toString(totalWordCount));
+
+			wordDatabase.commit();
+			//idDatabase.commit();
+			//database.compact();
+			 if (!wordDatabase.isClosed())
+				 wordDatabase.close();
+			 if (!idDatabase.isClosed())
+				 idDatabase.close();
+			System.out.println("PersistentMap closed");
+			isClosed = true;
+		}
+
+		/*
 		dictionary.put(NUMBER, nextNumber);
 		dictionary.put(SIZE, new Long(wordCount));
 		dictionary.put(WORD_COUNT, new Long(totalWordCount));
 		String path = environment.getStringProperty("WordDictionaryPath");
-		save(path, dictionary);
-		environment.logDebug("DictionarySize+ "+dictionary.size());
+		save(path, dictionary);*/
 	}
 
 	/* (non-Javadoc)
@@ -81,12 +159,11 @@ public class ConcordanceDictionary  implements IDictionary {
 	 */
 	@Override
 	public String getWord(String id) {
-		synchronized(dictionary) {
-			JSONObject words = getWords();
-			return (String)words.get(id);
+		synchronized(idWords) {
+			return idWords.get(id);
 		}
 	}
-	
+	/*
 	JSONObject getWords() {
 		return (JSONObject)dictionary.get(WORDS);
 	}
@@ -94,7 +171,7 @@ public class ConcordanceDictionary  implements IDictionary {
 	JSONObject getIDs() {
 		return (JSONObject)dictionary.get(IDS);
 	}
-	
+	*/
 
 	/* (non-Javadoc)
 	 * @see org.topicquests.concordance.api.IDictionary#getId(java.lang.String)
@@ -102,15 +179,17 @@ public class ConcordanceDictionary  implements IDictionary {
 	@Override
 	public String getWordId(String word) {
 		//This tests for the word and, if necessary, its lowercase version
-		synchronized(dictionary) {
-			JSONObject ids = getIDs();
-			String result = (String)ids.get(word);
+		synchronized(wordIds) {
+			//JSONObject ids = getIDs();
+			String result = wordIds.get(word);
+			environment.logDebug("ConcordanceDictionary.getWordId "+word+" "+result);
 			if (result == null) {
 				//does this word have caps?
 				String lc = word.toLowerCase();
+				environment.logDebug("ConcordanceDictionary.getWordId-1 "+word+" "+lc);
 				if (!lc.equals(word)) {
 					//see if it exists as lowercase
-					result = (String)ids.get(lc);
+					result = wordIds.get(lc);
 				}
 			}
 			return result;
@@ -122,25 +201,32 @@ public class ConcordanceDictionary  implements IDictionary {
 	 */
 	@Override
 	public String addWord(String theWord) {
+		//update global statistics
+		environment.getStats().addWordRead();
 		//Will get the word even if lower case
 		String word = theWord.toLowerCase();
 		String id = getWordId(word);
-		synchronized(dictionary) {
+		environment.logDebug("Dictionary.addWord "+word+" "+id);
+		synchronized(wordIds) {
 			totalWordCount++;
-			//update global statistics
-			environment.getStats().addWordRead();
+			
 			if (id == null) {
 				this.wordCount++;
 				environment.getStats().addDictionaryWord();
 				//this is a new word
-				id = newNumericId();
+				id = nextNumber.toString();
+				nextNumber += 1;
 				//TODO NOTE: if id == -1, there was an error in the database
 				//TODO don't make duplicate lowercase, but always add word if it doesn't exist
 				// This captures all spellings of a given word
-				JSONObject words = getWords();
-				words.put(id, word);
-				words = getIDs(); //reuse variable
-				words.put(word, id);
+				//JSONObject words = getWords();
+				environment.logDebug("Dictionary.addWord-1 "+word+" "+id);
+				wordIds.put(word, id);
+				//wordIds.
+				//words = getIDs(); //reuse variable
+				idWords.put(id, word);
+				wordDatabase.commit();
+				idDatabase.commit();
 			}
 		}
 		return id;
@@ -151,11 +237,19 @@ public class ConcordanceDictionary  implements IDictionary {
 	 */
 	@Override
 	public void export(Writer out) throws Exception {
-		synchronized(dictionary) {
-			System.out.println("exporting "+dictionary.size());
+		synchronized(wordIds) {
+			System.out.println("exporting "+wordCount);
+			JSONObject dictionary = new JSONObject();
 			dictionary.put(NUMBER, nextNumber);
 			dictionary.put(SIZE, new Long(wordCount));
 			dictionary.put(WORD_COUNT, new Long(totalWordCount));
+			Iterator<String>itr = wordIds.keyIterator();
+			String key;
+			while (itr.hasNext()) {
+				key = itr.next();
+				dictionary.put(key, wordIds.get(key));
+			}
+				
 			dictionary.writeJSONString(out);
 			out.flush();
 			out.close();
@@ -165,7 +259,7 @@ public class ConcordanceDictionary  implements IDictionary {
 
 	/* (non-Javadoc)
 	 * @see org.topicquests.concordance.api.IDictionary#getDictionary(java.lang.String)
-	 */
+	 * /
 	@Override
 	public JSONObject getDictionary() {
 		return dictionary;
@@ -176,11 +270,8 @@ public class ConcordanceDictionary  implements IDictionary {
 	 */
 	@Override
 	public boolean isEmpty() {
-		synchronized(dictionary) {
-			JSONObject obj = this.getWords();
-			if (obj == null)
-				return false;
-			return obj.isEmpty();
+		synchronized(wordIds) {
+			return wordIds.isEmpty();
 		}
 	}
 
@@ -197,15 +288,16 @@ public class ConcordanceDictionary  implements IDictionary {
 
 	/* (non-Javadoc)
 	 * @see org.topicquests.concordance.api.IDictionary#newNumericId(java.lang.String)
-	 */
+	 * /
 	@Override
 	public String newNumericId() {
 		synchronized(dictionary) {
-			String result =nextNumber.toString();
+			String result = nextNumber.toString();
 			nextNumber += 1;
 			return result;
 		}
 	}
+	*/
 
 	@Override
 	public void setNumericId(long newId) {
@@ -216,7 +308,7 @@ public class ConcordanceDictionary  implements IDictionary {
 	public long getSize() {
 		return this.wordCount;
 	}
-
+/*
 	JSONObject load(String filePath) throws Exception {
 		JSONObject result = null;
 		File myFile = new File(filePath);
@@ -237,13 +329,16 @@ public class ConcordanceDictionary  implements IDictionary {
 			result = new JSONObject();
 		return result;
 	}
+	*/
+	
 	void save(String filePath, JSONObject jo) throws Exception {
-		File myFile = new File(filePath);
+		
+		/*File myFile = new File(filePath);
 		FileOutputStream fos = new FileOutputStream(myFile);
 		GZIPOutputStream gos = new GZIPOutputStream(fos);
 		PrintWriter out = new PrintWriter(gos);
 		out.println(jo.toJSONString());
 		out.flush();
-		out.close();
+		out.close();*/
 	}
 }

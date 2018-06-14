@@ -25,7 +25,7 @@ public interface IDictionary {
 	 * Return a unique next identifier
 	 * @return
 	 */
-	String newNumericId();
+	//String newNumericId();
 	
 	/**
 	 * Should not return <code>null</code>
@@ -95,7 +95,7 @@ public interface IDictionary {
 	 */
 	long getSize();
 	
-	JSONObject getDictionary();
+	//JSONObject getDictionary();
 	
-	void saveDictionary() throws Exception;
+	void saveDictionary(); // throws Exception;
 }
