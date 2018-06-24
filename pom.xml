@@ -299,11 +299,6 @@
 		</dependency>
 		<dependency>
 			<groupId>org.topicquests</groupId>
-			<artifactId>pg-tmx</artifactId>
-			<version>0.7.0-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>org.topicquests</groupId>
 			<artifactId>tqos-general-database</artifactId>
 			<version>0.1.2-SNAPSHOT</version>
 		</dependency>
@@ -316,6 +311,11 @@
 			<groupId>org.topicquests</groupId>
 			<artifactId>tqks-common</artifactId>
 			<version>1.3.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.topicquests</groupId>
+			<artifactId>tqks-knowledge-server</artifactId>
+			<version>0.8.0-SNAPSHOT</version>
 		</dependency>
     </dependencies>
     <reporting>
