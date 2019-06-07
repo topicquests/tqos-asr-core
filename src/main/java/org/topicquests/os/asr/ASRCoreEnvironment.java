@@ -18,12 +18,15 @@ import org.topicquests.asr.sentence.api.ISentenceClient;
 import org.topicquests.backside.kafka.consumer.api.IMessageConsumerListener;
 import org.topicquests.blueprints.pg.BlueprintsPgEnvironment;
 import org.topicquests.hyperbrane.ConcordanceDictionary;
+import org.topicquests.hyperbrane.DictionaryEnvironment;
 import org.topicquests.hyperbrane.WordGramCache;
 import org.topicquests.hyperbrane.api.IDictionary;
 import org.topicquests.os.asr.api.IASRCoreModel;
 import org.topicquests.os.asr.api.IDbPediaModel;
+import org.topicquests.os.asr.api.IDictionaryEnvironment;
 import org.topicquests.os.asr.api.IDocumentProvider;
 import org.topicquests.os.asr.api.ISentenceProvider;
+import org.topicquests.os.asr.api.IStatisticsClient;
 import org.topicquests.os.asr.api.IWordGramChangeEventRegistry;
 //import org.topicquests.os.asr.dbpedia.DbPediaEventHandler;
 import org.topicquests.os.asr.dbpedia.DbPediaModel;
@@ -42,7 +45,9 @@ import com.tinkerpop.blueprints.impls.sql.SqlGraph;
  */
 public class ASRCoreEnvironment extends RootEnvironment {
 	private static ASRCoreEnvironment instance;
-	private StatisticsUtilityExtension stats;
+	private IStatisticsClient stats;
+
+	private IDictionaryEnvironment dictionaryEnvironment;
 	private IDictionary dictionary;
 	private IASRCoreModel model;
 	private IWordGramChangeEventRegistry changeRegistry;
@@ -72,6 +77,12 @@ public class ASRCoreEnvironment extends RootEnvironment {
 	public ASRCoreEnvironment() {
 		super("asr-props.xml", "logger.properties");
 		topicMapEnvironment = new SystemEnvironment();
+		stats = topicMapEnvironment.getStats();
+		dictionaryEnvironment = new DictionaryEnvironment("asr-props.xml", "logger.properties");
+		dictionaryEnvironment.setStatisticsClient(stats);
+		dictionaryEnvironment.createDictionaryClient();
+		dictionaryEnvironment.initializeDictionary();
+		dictionary = dictionaryEnvironment.getDictionary();
 		multiTopicGrams = new HashSet<String>();
 		blueprints = new BlueprintsPgEnvironment();
 		changeRegistry = new WordGramChangeEventRegistry();
@@ -79,7 +90,6 @@ public class ASRCoreEnvironment extends RootEnvironment {
 		//IPostgreSqlProvider provider = new PostgreSqlProvider(getGraphName(), "AsrSchema");
 		spotliteClient = new SpotlightClient(this);
 		dbPediaModel  = new DbPediaModel(this);
-//		dbPediaEventHandler = new DbPediaEventHandler(this);
 
 		String schemaName = getStringProperty("DatabaseSchema");
 		 
@@ -96,9 +106,7 @@ public class ASRCoreEnvironment extends RootEnvironment {
 		logDebug("ASRCoreEnvironment++++ "+getSentenceProvider());
 		logDebug("ASRCoreEnvironment-- "+getFoo());
 		try {
-			stats = new StatisticsUtilityExtension(StatisticsUtility.getInstance());
 			cache = new WordGramCache(this, 8192);
-			dictionary = new ConcordanceDictionary(this);
 			wordnetUtil = new WordNetUtility(this);
 			model = new ASRCoreModel(this);
 			wordnetModel = new WordnetModel(this);
@@ -110,6 +118,10 @@ public class ASRCoreEnvironment extends RootEnvironment {
 			throw new RuntimeException(e);			
 		}
 		instance = this;
+	}
+	
+	public IDictionaryEnvironment getDictionaryEnvironment() {
+		return dictionaryEnvironment;
 	}
 	
 	Object getFoo() {
@@ -231,31 +243,19 @@ public class ASRCoreEnvironment extends RootEnvironment {
 		return dictionary;
 	}
 
-	public StatisticsUtilityExtension getStats() {
+	public IStatisticsClient getStats() {
 		return stats;
 	}
 
 
 	public void shutDown() {
 		System.out.println("ShuttingDown");
-		try {
-			stats.saveStats();
-		} catch (Exception x) {
-			logError(x.getMessage(), x);
-			x.printStackTrace();
-		}
 		cache.flushAll();
 		
 		saveMultiTopicGrams();
-		try {
-			if (dictionary != null)
-				dictionary.saveDictionary();
-		} catch (Exception e) {
-			logError(e.getMessage(), e);
-			e.printStackTrace();
-		}
 		//blueprints shuts down theGraph
 		blueprints.shutDown();
+		topicMapEnvironment.shutDown();
 		
 	}
 	

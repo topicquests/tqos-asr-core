@@ -36,6 +36,11 @@
 		<parameter name="ProcessLens" value="org.topicquests.os.asr.reader.lens.ProcessLens" /> 
 	</list>
 
+	<!-- this server commmunicates with the Dictionary Server -->
+	<parameter name="DictServerURl" value="localhost" /> <!--  coordinate with Dictionary -->
+	<parameter name="DictServerPort" value="7878" /> <!-- coordinate with Dictionary Server -->
+	<parameter name="DictServerClientId" value = "changeme" /> <!-- coordinate with Dictionary Server -->
+
 	
 </properties>
 

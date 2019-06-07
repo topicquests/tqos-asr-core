@@ -315,5 +315,27 @@ public interface IDocument {
 //	JSONObject getMap();
 	
 //	String toJSONPersist();
+	
+	/////////////////////
+	// isA
+	// These are local findings while reading
+	/////////////////////
+	
+	void addIsA(String subjectWordGramId, String objectWordGramId);
+	
+	boolean isA(String subjectWordGramId, String objectWordGramId);
+	
+	List<String> listIsAs();
+	
+	void remove(String subjectWordGramId, String objectWordGramId);
 
+	/////////////////////
+	// WordGram Histogram
+	// These are local to this document
+	/////////////////////
+	
+	void addToHistogram(String wordgramId);
+	
+	int getHistogramCount(String wordgramId);
+	
 }

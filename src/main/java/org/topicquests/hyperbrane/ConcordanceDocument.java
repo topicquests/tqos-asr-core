@@ -56,7 +56,9 @@ public class ConcordanceDocument implements IDocument {
 		MY_CITATIONS			= "myCitations",
 		NODE_LOCATOR			= "NodeLocator",
 		METADATA				= "MetaData",
-		DB_PEDIA_URI_LIST		= "dbpuri";
+		DB_PEDIA_URI_LIST		= "dbpuri",
+		ISA_STRUCTURE			= "isaStruct",
+		WORDGRAM_HISTOGRAM		= "wordgramHisto";
 
 	
 	/**
@@ -771,6 +773,42 @@ public class ConcordanceDocument implements IDocument {
 	@Override
 	public String getPMCID() {
 		return data.getAsString(PMCID);
+	}
+
+	@Override
+	public void addIsA(String subjectWordGramId, String objectWordGramId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public boolean isA(String subjectWordGramId, String objectWordGramId) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public List<String> listIsAs() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void remove(String subjectWordGramId, String objectWordGramId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void addToHistogram(String wordgramId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public int getHistogramCount(String wordgramId) {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 

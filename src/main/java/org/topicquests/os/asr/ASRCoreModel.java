@@ -26,8 +26,12 @@ import org.topicquests.ks.api.ICoreIcons;
 import org.topicquests.ks.api.ITicket;
 import org.topicquests.ks.tm.api.IProxy;
 import org.topicquests.os.asr.api.IASRCoreModel;
+import org.topicquests.os.asr.api.IDictionaryClient;
+import org.topicquests.os.asr.api.IDictionaryEnvironment;
 import org.topicquests.os.asr.api.IDocumentProvider;
 import org.topicquests.os.asr.api.ISentenceProvider;
+import org.topicquests.os.asr.api.IStatisticsClient;
+import org.topicquests.os.asr.common.api.IASRFields;
 import org.topicquests.os.asr.reader.wordnet.WordNetUtility;
 import org.topicquests.os.asr.reader.wordnet.api.IWordnetModel;
 import org.topicquests.support.ResultPojo;
@@ -52,12 +56,16 @@ public class ASRCoreModel implements IASRCoreModel {
 	private IWordnetModel wordnetModel;
 	protected IDocumentProvider documentProvider;
 	protected ISentenceProvider sentenceProvider;
+	protected IStatisticsClient stats;
+	private IDictionaryEnvironment dictionaryEnvironment;
 
 	/**
 	 * 
 	 */
 	public ASRCoreModel(ASRCoreEnvironment env) {
 		environment = env;
+		stats = environment.getStats();
+		dictionaryEnvironment = environment.getDictionaryEnvironment();
 		environment.logDebug("ASRCoreModel- "+env);
 		environment.logDebug("ASRCoreModel-- "+env.getDocProvider());
 
@@ -129,6 +137,8 @@ public class ASRCoreModel implements IASRCoreModel {
 		String gramId = null;
 		try {
 			IWordGram g;
+			IResult r;
+			JSONObject jo;
 			if (result == null) {
 				//it's a new word, result = id
 				result = dictionary.addWord(word);
@@ -136,7 +146,7 @@ public class ASRCoreModel implements IASRCoreModel {
 				//MUST SEE IF WE HAVE THIS YET?
 				g = this.newTerminal(result, userId, null, null);
 				g.setWords(word);
-				environment.getStats().addTerminal();
+				stats.addToKey(IASRFields.WG1);
 				if (sentenceId != null)
 					g.addSentenceId(sentenceId);
 				if (lexType != null)
@@ -147,7 +157,7 @@ public class ASRCoreModel implements IASRCoreModel {
 				environment.logDebug("ASRCoreModel.addWord-2 "+word+" "+g.getWords());
 			} else {
 				//The word exists, but needs to be counted
-				environment.getStats().addWordRead();
+				stats.addToKey(IASRFields.WORDS_READ);
 				gramId = this.singletonId(result);
 				
 				//get it as a singleton
@@ -294,21 +304,21 @@ public class ASRCoreModel implements IASRCoreModel {
 		//TODO spend more time figuring out why singleton fails this test
 		environment.logDebug("ASRCoreModel.newWordGram-1 "+t+" "+IWordGram.COUNT_1);
 		if (t.equals(IWordGram.COUNT_1) || (wordIds.size()==1))
-			environment.getStats().addTerminal();
+			stats.addToKey(IASRFields.WG1);
 		else if (t.equals(IWordGram.COUNT_2)) //was missing else
-			environment.getStats().addPair();
+			stats.addToKey(IASRFields.WG2);
 		else if (t.equals(IWordGram.COUNT_3))
-			environment.getStats().addTriple();
+			stats.addToKey(IASRFields.WG3);
 		else if (t.equals(IWordGram.COUNT_4))
-			environment.getStats().addQuad();
+			stats.addToKey(IASRFields.WG4);
 		else if (t.equals(IWordGram.COUNT_5))
-			environment.getStats().addFiver();
+			stats.addToKey(IASRFields.WG5);
 		else if (t.equals(IWordGram.COUNT_6))
-			environment.getStats().addSixer();
+			stats.addToKey(IASRFields.WG6);
 		else if (t.equals(IWordGram.COUNT_7))
-			environment.getStats().addSevener();
+			stats.addToKey(IASRFields.WG7);
 		else if (t.equals(IWordGram.COUNT_8))
-			environment.getStats().addEighter();
+			stats.addToKey(IASRFields.WG8);
 		else {
 			String msg = "ASRCoreModel.newWordGram bad count: "+gramId+" | "+t;
 			environment.logError(msg, null);
@@ -372,7 +382,7 @@ public class ASRCoreModel implements IASRCoreModel {
 			int counter = 0;
 			for (String word:wx) {
 				
-				id = dictionary.getWordIdOrAddWord(word.trim());
+				id = dictionary.addWord(word.trim());
 				ids.add(id);
 				if (counter++ > 0)
 					buf.append(".");
@@ -383,7 +393,7 @@ public class ASRCoreModel implements IASRCoreModel {
 			if (result == null)
 				result = this.addWordGram(ids, null, "SystemUser", null, null);
 		} else {
-			id = dictionary.getWordIdOrAddWord(words);
+			id = dictionary.addWord(words);
 			result = getThisWordGram(this.singletonId(id));
 			if (result == null)
 				result = this.newTerminal(id, "SystemUser", null, null);
@@ -455,7 +465,7 @@ public class ASRCoreModel implements IASRCoreModel {
 		result.setLastEditDate(d);
 		result.setSentence(sentence);
 		result.setDocumentId(documentLocator);
-		environment.getStats().addSentence();
+		stats.addToKey(IASRFields.DOCS_IMPORTED);
 		return result;
 	}
 
@@ -478,7 +488,7 @@ public class ASRCoreModel implements IASRCoreModel {
 			result.setDate(d);
 			result.setLastEditDate(d);
 			result.setNodeType(documentType);
-			environment.getStats().addDocument();
+			stats.addToKey(IASRFields.DOCS_IMPORTED);
 		}
 		return result;
 	}

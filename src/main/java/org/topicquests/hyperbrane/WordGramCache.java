@@ -10,6 +10,9 @@ import java.util.*;
 import org.topicquests.blueprints.pg.BlueprintsPgEnvironment;
 import org.topicquests.hyperbrane.api.IWordGram;
 import org.topicquests.os.asr.ASRCoreEnvironment;
+import org.topicquests.os.asr.DictionaryHttpClient;
+import org.topicquests.os.asr.api.IDictionaryClient;
+
 import com.tinkerpop.blueprints.impls.sql.SqlGraph;
 import com.tinkerpop.blueprints.impls.sql.SqlVertex;
 
